@@ -13,4 +13,4 @@ LABEL description="Client | Proof-of-work concept"
 RUN apk add --update libstdc++ libgcc gettext gnu-libiconv && rm -rf /var/cache/apk/*
 WORKDIR /app
 COPY --from=builder     /app/cmd/run/pow ./
-CMD ["while true; do ./pow -mode=client; sleep 1; done"]
+CMD ["./pow", "-mode=client"]

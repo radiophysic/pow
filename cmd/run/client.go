@@ -126,10 +126,3 @@ func verifyResponse(rw *bufio.ReadWriter) (Message string, RequestID string, err
     }
     return resp.Message, resp.RequestID, nil
 }
-
-func main() {
-    err := client("localhost")
-    if err != nil {
-        fmt.Println("Error:", errors.WithStack(err))
-    }
-}

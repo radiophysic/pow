@@ -26,6 +26,8 @@ Also I decided to skip because of PoC:
 - Graceful shutdown
 - Retries strategy / Reconnects
 - Penalty for wrong noncens + hash
+- fine logger
+- config reader
 
 ## Decisions
 

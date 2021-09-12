@@ -14,5 +14,5 @@ RUN apk add --update libstdc++ libgcc gettext gnu-libiconv && rm -rf /var/cache/
 WORKDIR /app
 COPY --from=builder     /app/cmd/run/pow ./
 COPY --from=builder     /app/assets      ./assets/
-CMD ["./pow -mode=server"]
+CMD ["./pow", "-mode=server"]
 EXPOSE 7777
