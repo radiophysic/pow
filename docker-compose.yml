@@ -1,0 +1,22 @@
+version: '3.4'
+services:
+  server:
+    container_name: pow_server
+    hostname: pow_server
+    restart: always
+    build:
+      dockerfile: server.Dockerfile
+      context: .
+      target: runtime
+    ports:
+      - 7777:7777
+  client:
+    container_name: pow_client
+    hostname: pow_client
+    restart: always
+    build:
+      dockerfile: client.Dockerfile
+      context: .
+      target: runtime
+    depends_on:
+      - server

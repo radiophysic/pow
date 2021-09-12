@@ -42,6 +42,8 @@ It should resist to ASIC issue.
 
 ## Work in progress
 
+- separate main func at client/server files
+- add cli arg (flag)
 - clean code
 - write tests
 - write dockerfiles
