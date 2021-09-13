@@ -8,8 +8,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var appType string
-var hostAddr string
+var (
+	appType  string
+	hostAddr string
+)
 
 func init() {
 	flag.StringVar(&appType, "mode", "", "-mode=server\n-app=client")
