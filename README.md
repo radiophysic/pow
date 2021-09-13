@@ -6,8 +6,17 @@ see [PRD](docs/PRD.md)
 
 ## How to run
 
+0. Get [docker-compose](https://docs.docker.com/compose/install/)
+
+1. Build docker image 
+
 ```shell
 docker-compose up -d
+```
+
+2. Check containers' output:
+
+```shell
 docker-compose logs
 ```
 
@@ -26,7 +35,6 @@ I decided to skip because of PoC:
 - Retries strategy / Reconnects
 - Penalty for wrong noncens + hash
 - fine logger
-- config reader
 
 ## Decisions
 

@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bufio"
@@ -9,14 +9,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"tcp/conf"
 	"tcp/pkg/lib"
 	"tcp/service"
 )
 
-func client(ip string) error {
-	rw, err := lib.Open(ip + lib.Port)
+type Client struct {
+	cfg conf.Config
+}
+
+func NewClient(config conf.Config) Client {
+	return Client{cfg: config}
+}
+
+func (c Client) GetQuote() error {
+	serverAddr := c.cfg.ServerAddr + c.cfg.ServerPort
+	rw, err := lib.Open(serverAddr)
 	if err != nil {
-		fmt.Println("The client cannot link to change the address:" + ip + lib.Port)
+		fmt.Println("The client cannot link to change the address:" + serverAddr)
 		return err
 	}
 
@@ -32,8 +42,6 @@ func client(ip string) error {
 	if challengeRequestID != respRequestID {
 		return errors.New("challengeRequestID != respRequestID")
 	}
-
-	// TBD: check existed blocks
 
 	var hash []byte
 	var nonces []uint32
@@ -63,7 +71,7 @@ func client(ip string) error {
 		return errors.New("pow.RequestID != lastRequestId")
 	}
 
-	fmt.Printf("\n\nWork has been proved\n Quote: %s\n\n", message)
+	fmt.Printf("\n\nMy work has been proved\nQuote: [%s]\n\n", message)
 
 	return nil
 }

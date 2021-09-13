@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"tcp/pkg/lib"
+	"tcp/pkg/utils"
 )
 
 type ChallengeRequest struct {
@@ -44,7 +45,7 @@ type VerificationErr struct {
 	ErrorMessage string
 }
 
-func ChallengeHandler(rw *bufio.ReadWriter) {
+func (s Service) ChallengeHandler(rw *bufio.ReadWriter) {
 	var request ChallengeRequest
 
 	decoder := gob.NewDecoder(rw)
@@ -73,15 +74,13 @@ func ChallengeHandler(rw *bufio.ReadWriter) {
 	}
 }
 
-func VerifyHandler(rw *bufio.ReadWriter) {
+func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 	var request VerifyRequest
-
 	decoder := gob.NewDecoder(rw)
 	if err := decoder.Decode(&request); err != nil {
 		fmt.Printf("VerifyHandler: decoder.Decode: %s", err)
 		return
 	}
-
 	fmt.Println("Client asked for verification, id:", request.RequestID)
 
 	response := &VerifyResponse{
@@ -95,9 +94,9 @@ func VerifyHandler(rw *bufio.ReadWriter) {
 		response.Error.ErrorMessage = err.Error()
 	}
 
-	quote, err := getRandomQuote()
+	quote, err := getRandomQuote(s.cfg.DatasetFile)
 	if err != nil {
-		fmt.Printf("Service internal error: %s", err)
+		fmt.Printf("Service internal error: %s\n", err)
 		response.Error.Code = 0
 		response.Error.ErrorMessage = err.Error()
 	}
@@ -116,51 +115,54 @@ func VerifyHandler(rw *bufio.ReadWriter) {
 	}
 }
 
-func getRandomQuote() (string, error) {
+func getRandomQuote(f string) (string, error) {
 	var q string
 	var line int
 	var file *os.File
-	fname := "assets/dataset.txt"
-	if _, err := os.Stat(fname); err == nil {
-		file, err = os.Open(fname)
+
+	if _, err := os.Stat(f); err == nil {
+		file, err = os.Open(f)
+		if err != nil {
+			fmt.Printf("getRandomQuote: flie open: %s", err.Error())
+			return "", err
+		}
+
+		reader := bufio.NewReader(file)
+		linesCount, err := utils.LineCounter(reader)
 		if err != nil {
 			return "", err
 		}
+
+		rand.Seed(time.Now().UnixNano())
+		line = rand.Intn(linesCount)
+		if line == 0 {
+			line = 1
+		}
+
+		// rewind position to the beginning of the file because EOF reached due to LineCounter call
+		_,_ = file.Seek(0, 0)
+
+		q, _, err = utils.ReadLine(reader, line)
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("Got EOF " + q)
+			}
+			return "", err
+		}
+
+		fmt.Printf("\nQuote picked: \n%s\n", q)
 		defer func() {
 			if err = file.Close(); err != nil {
 				fmt.Println("Closing file error" + err.Error())
 			}
 		}()
-
-		rand.Seed(time.Now().UnixNano())
-		line = rand.Intn(400)
-		if line == 0 {
-			line = 1
-		}
-		reader := bufio.NewReader(file)
-		q, _, err = ReadLine(reader, line)
-		if err != nil {
-			return "", err
-		}
-
-		fmt.Printf("\nQuote picked: \n%s\n", q)
-
 	} else if os.IsNotExist(err) {
+		fmt.Println("getRandomQuote: flie not found")
 		return "", err
     } else {
+		fmt.Printf("getRandomQuote: flie open: %s", err.Error())
         return "", err
     }
 
 	return q, nil
-}
-
-func ReadLine(r io.Reader, lineNum int) (line string, lastLine int, err error) {
-	sc := bufio.NewScanner(r)
-	for sc.Scan() {
-		lastLine++
-		if lastLine == lineNum {
-			return sc.Text(), lastLine, sc.Err()
-		}
-	}
-	return line, lastLine, io.EOF
 }

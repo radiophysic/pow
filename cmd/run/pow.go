@@ -6,6 +6,9 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"tcp/client"
+	"tcp/conf"
+	"tcp/service"
 )
 
 var (
@@ -19,17 +22,31 @@ func init() {
 }
 
 func main() {
+	var (
+		cfg conf.Config
+		err error
+		svc service.Service
+		cli client.Client
+	)
+
 	flag.Parse()
+
+	if cfg, err = conf.ReadConfig(); err != nil {
+		fmt.Println("Error:", errors.WithStack(err))
+		os.Exit(1)
+	}
 
 	switch appType {
 	case "server":
-		err := Server()
+		svc = service.NewService(cfg)
+		err = svc.Server()
 		if err != nil {
 			fmt.Println("Error:", errors.WithStack(err))
 			os.Exit(1)
 		}
 	case "client":
-		err := client(hostAddr)
+		cli = client.NewClient(cfg)
+		err = cli.GetQuote()
 		if err != nil {
 			fmt.Println("Error:", errors.WithStack(err))
 			os.Exit(1)

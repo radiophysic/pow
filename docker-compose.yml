@@ -8,6 +8,7 @@ services:
       dockerfile: server.Dockerfile
       context: .
       target: runtime
+    env_file: .env
     ports:
       - 7777:7777
   client:
@@ -18,5 +19,6 @@ services:
       dockerfile: client.Dockerfile
       context: .
       target: runtime
+    env_file: .env
     depends_on:
       - server

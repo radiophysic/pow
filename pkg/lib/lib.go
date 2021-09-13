@@ -11,8 +11,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const Port = ":7777"
-
 // Open stands for client-to-server connection.
 func Open(addr string) (*bufio.ReadWriter, error) {
 	fmt.Println("Dial " + addr)
@@ -81,11 +79,11 @@ func (e *EndPoint) handleMessage(conn net.Conn) {
 }
 
 // Listen stands for server listen for client connections.
-func (e *EndPoint) Listen() error {
+func (e *EndPoint) Listen(port string) error {
 	var err error
-	e.listener, err = net.Listen("tcp", Port)
+	e.listener, err = net.Listen("tcp", port)
 	if err != nil {
-		return errors.Wrap(err, "Service cannot be bound on port"+Port)
+		return errors.Wrap(err, "Service cannot be bound on port" + port)
 	}
 	fmt.Println("Service live: ", e.listener.Addr().String())
 	for {
