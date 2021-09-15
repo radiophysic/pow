@@ -34,6 +34,7 @@ I decided to skip because of PoC:
 - Graceful shutdown
 - Retries strategy / Reconnects
 - Penalty for wrong noncens + hash
+- Unit tests for client (I managed to write tests for service handlers)
 
 ## Decisions
 
