@@ -2,8 +2,8 @@ package lib
 
 import (
 	"bufio"
-	"fmt"
 	"io"
+	"log"
 	"net"
 	"strings"
 	"sync"
@@ -13,7 +13,6 @@ import (
 
 // Open stands for client-to-server connection.
 func Open(addr string) (*bufio.ReadWriter, error) {
-	fmt.Println("Dial " + addr)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Dialing "+addr+" failed")
@@ -28,11 +27,13 @@ type EndPoint struct {
 	m        sync.RWMutex
 	listener net.Listener
 	handler  map[string]HandleFunc
+	log      *log.Logger
 }
 
-func NewEndPoint() *EndPoint {
+func NewEndPoint(logger *log.Logger) *EndPoint {
 	return &EndPoint{
 		handler: map[string]HandleFunc{},
+		log:     logger,
 	}
 }
 
@@ -50,20 +51,19 @@ func (e *EndPoint) handleMessage(conn net.Conn) {
 		bufio.NewWriter(conn),
 	)
 	defer func() {
-		 if err := conn.Close(); err != nil {
-			 fmt.Println("Closing connection error" + err.Error())
-		 }
+		if err := conn.Close(); err != nil {
+			e.log.Println("Closing connection error" + err.Error())
+		}
 	}()
-
 
 	for {
 		cmd, err := rw.ReadString('\n')
 		switch {
 		case err == io.EOF:
-			fmt.Println("Client disconnected.")
+			e.log.Println("Client disconnected.")
 			return
 		case err != nil:
-			fmt.Println("read error")
+			e.log.Println("read error")
 			return
 		}
 
@@ -71,7 +71,7 @@ func (e *EndPoint) handleMessage(conn net.Conn) {
 		e.m.RLock()
 		handleCmd, ok := e.handler[cmd]
 		if !ok {
-			fmt.Println("Unregistered request data type.")
+			e.log.Println("Unregistered request data type.")
 			return
 		}
 		handleCmd(rw)
@@ -83,13 +83,15 @@ func (e *EndPoint) Listen(port string) error {
 	var err error
 	e.listener, err = net.Listen("tcp", port)
 	if err != nil {
-		return errors.Wrap(err, "Service cannot be bound on port" + port)
+		return errors.Wrap(err, "Service cannot be bound on port"+port)
 	}
-	fmt.Println("Service live: ", e.listener.Addr().String())
+
+	e.log.Println("Service live: ", e.listener.Addr().String())
+
 	for {
 		conn, err := e.listener.Accept()
 		if err != nil {
-			fmt.Println("Heart request monitoring failed!")
+			e.log.Println("Heart request monitoring failed!")
 			continue
 		}
 		go e.handleMessage(conn)

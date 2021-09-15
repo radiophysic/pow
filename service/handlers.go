@@ -50,11 +50,11 @@ func (s Service) ChallengeHandler(rw *bufio.ReadWriter) {
 
 	decoder := gob.NewDecoder(rw)
 	if err := decoder.Decode(&request); err != nil {
-		fmt.Printf("ChallengeHandler: decoder.Decode: %s", err)
+		s.log.Printf("ChallengeHandler: decoder.Decode: %s", err)
 		return
 	}
 
-	fmt.Println("Client asked for challenge, id:", request.RequestID)
+	s.log.Println("Client asked for challenge, id:", request.RequestID)
 
 	response := &ChallengeResponse{
 		RequestID:   request.RequestID,
@@ -63,13 +63,13 @@ func (s Service) ChallengeHandler(rw *bufio.ReadWriter) {
 
 	encoder := gob.NewEncoder(rw)
 	if err := encoder.Encode(&response); err != nil {
-		fmt.Printf("ChallengeHandler: encoder.Encode: %s", err)
+		s.log.Printf("ChallengeHandler: encoder.Encode: %s", err)
 		return
 	}
 
 	err := rw.Flush()
 	if err != nil {
-		fmt.Println("Flush write failure")
+		s.log.Println("Flush write failure")
 		return
 	}
 }
@@ -87,7 +87,8 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 	}
 
 	response.RequestID = request.RequestID
-	fmt.Println("Client asked for verification, id:", request.RequestID)
+	s.log.Printf("Client asked for verification, RequestID:%s\nPayload: %v",
+		request.RequestID, request.Payload)
 
 	if request.Payload.Hash == nil || request.Payload.Nonces == nil {
 		response.Error.Code = 2
@@ -98,16 +99,16 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 
 	err := lib.Verify(request.Payload.Hash, request.Payload.Nonces)
 	if err != nil {
-		fmt.Printf("Verification failed: %s", err)
+		s.log.Printf("Verification failed: %s", err)
 		response.Error.Code = 3
 		response.Error.ErrorMessage = err.Error()
 		writeVerifyResp(rw, &response)
 		return
 	}
 
-	quote, err := GetRandomQuote(s.cfg.DatasetFile)
+	quote, err := s.getRandomQuote()
 	if err != nil {
-		fmt.Printf("Service internal error: %s\n", err)
+		s.log.Printf("Service internal error: %s\n", err)
 		response.Error.Code = 4
 		response.Error.ErrorMessage = err.Error()
 		writeVerifyResp(rw, &response)
@@ -131,20 +132,23 @@ func writeVerifyResp(rw *bufio.ReadWriter, response *VerifyResponse) {
 	}
 }
 
-func GetRandomQuote(f string) (string, error) {
-	var q string
-	var line int
-	var file *os.File
+func (s Service) getRandomQuote() (string, error) {
+	var (
+		err error
+		q string
+		line, linesCount int
+		file *os.File
+	)
 
-	if _, err := os.Stat(f); err == nil {
-		file, err = os.Open(f)
+	if _, err = os.Stat(s.cfg.DatasetFile); err == nil {
+		file, err = os.Open(s.cfg.DatasetFile)
 		if err != nil {
-			fmt.Printf("getRandomQuote: flie open: %s", err.Error())
+			s.log.Printf("getRandomQuote: file open: %s", err.Error())
 			return "", err
 		}
 
 		reader := bufio.NewReader(file)
-		linesCount, err := utils.LineCounter(reader)
+		linesCount, err = utils.LineCounter(reader)
 		if err != nil {
 			return "", err
 		}
@@ -166,17 +170,17 @@ func GetRandomQuote(f string) (string, error) {
 			return "", err
 		}
 
-		fmt.Printf("\nQuote picked: \n%s\n", q)
+		s.log.Printf("\nQuote picked: \n%s\n", q)
 		defer func() {
 			if err = file.Close(); err != nil {
-				fmt.Println("Closing file error" + err.Error())
+				s.log.Println("Closing file error" + err.Error())
 			}
 		}()
 	} else if os.IsNotExist(err) {
-		fmt.Println("getRandomQuote: file not found")
+		s.log.Println("getRandomQuote: file not found")
 		return "", err
     } else {
-		fmt.Printf("getRandomQuote: flie open: %s", err.Error())
+		s.log.Printf("getRandomQuote: file open: %s", err.Error())
         return "", err
     }
 

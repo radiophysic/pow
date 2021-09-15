@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"log"
 	"testing"
 
 	"github.com/google/uuid"
@@ -13,29 +14,12 @@ import (
 )
 
 func MockService() Service {
-	return NewService(conf.Config{
+	cfg :=  conf.Config{
 		ServerAddr:  "localhost",
 		ServerPort:  ":7777",
 		DatasetFile: "../assets/dataset.txt",
-	})
-}
-
-func TestGetRandomQuote(t *testing.T) {
-	testID := 0
-	t.Logf("\tTest %d:\tCorrect file path.", testID)
-	{
-		file := "../assets/dataset.txt"
-		got, _ := GetRandomQuote(file)
-		require.NotEmpty(t, got, "not empty")
 	}
-
-	testID++
-	t.Logf("\tTest %d:\tIncorrect file path should return error.", testID)
-	{
-		file := "dataset.txt"
-		_, err := GetRandomQuote(file)
-		require.Error(t, err)
-	}
+	return NewService(cfg, log.Default())
 }
 
 func TestChallengeHandler(t *testing.T) {
@@ -203,7 +187,6 @@ func TestVerifyHandler_PayloadWrong(t *testing.T) {
 		require.Equal(t, 3, resp.Error.Code)
 	}
 }
-
 
 func TestVerifyHandler_Successful(t *testing.T) {
 	s := MockService()

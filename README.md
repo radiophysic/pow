@@ -34,7 +34,6 @@ I decided to skip because of PoC:
 - Graceful shutdown
 - Retries strategy / Reconnects
 - Penalty for wrong noncens + hash
-- fine logger
 
 ## Decisions
 
@@ -52,5 +51,4 @@ It should resist to ASIC issue.
 ## Work in progress
 
 - clean code
-- write tests
 - complete readme

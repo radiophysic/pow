@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/pkg/errors"
@@ -38,7 +39,8 @@ func main() {
 
 	switch appType {
 	case "server":
-		svc = service.NewService(cfg)
+		logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+		svc = service.NewService(cfg, logger)
 		err = svc.Server()
 		if err != nil {
 			fmt.Println("Error:", errors.WithStack(err))
