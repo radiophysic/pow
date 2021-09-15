@@ -59,7 +59,7 @@ func (e *EndPoint) handleMessage(conn net.Conn) {
 	for {
 		cmd, err := rw.ReadString('\n')
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			e.log.Println("Client disconnected.")
 			return
 		case err != nil:
@@ -79,8 +79,8 @@ func (e *EndPoint) handleMessage(conn net.Conn) {
 }
 
 // Listen stands for server listen for client connections.
-func (e *EndPoint) Listen(port string) error {
-	var err error
+func (e *EndPoint) Listen(port string) (err error) {
+	var conn net.Conn
 	e.listener, err = net.Listen("tcp", port)
 	if err != nil {
 		return errors.Wrap(err, "Service cannot be bound on port"+port)
@@ -89,7 +89,7 @@ func (e *EndPoint) Listen(port string) error {
 	e.log.Println("Service live: ", e.listener.Addr().String())
 
 	for {
-		conn, err := e.listener.Accept()
+		conn, err = e.listener.Accept()
 		if err != nil {
 			e.log.Println("Heart request monitoring failed!")
 			continue

@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"bufio"
@@ -11,22 +11,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"tcp/conf"
+	"tcp/service"
 )
 
-func MockService() Service {
+func MockService() service.Service{
 	cfg :=  conf.Config{
 		ServerAddr:  "localhost",
 		ServerPort:  ":7777",
 		DatasetFile: "../assets/dataset.txt",
 	}
-	return NewService(cfg, log.Default())
+	return service.NewService(cfg, log.Default())
 }
 
 func TestChallengeHandler(t *testing.T) {
 	s := MockService()
 
-	req := ChallengeRequest{RequestID: "6056f1c3-b316-4bf4-bc42-244410340ded"}
-	resp := ChallengeResponse{}
+	req := service.ChallengeRequest{RequestID: "6056f1c3-b316-4bf4-bc42-244410340ded"}
+	resp := service.ChallengeResponse{}
 
 	var clientReq, serverResp bytes.Buffer
 
@@ -80,16 +81,16 @@ func TestChallengeHandler(t *testing.T) {
 func TestVerifyHandler_BrokenPayload(t *testing.T) {
 	s := MockService()
 	
-	req := VerifyRequest{
+	req := service.VerifyRequest{
 		RequestID:   "6ca1efb1-7134-406e-9304-0c3e774fd8ba",
 		ChallengeID: "c9c0747d-587a-4f65-97fa-332ebddc6ed3",
-		Payload:     ProofOfWork{
+		Payload:     service.ProofOfWork{
 			Hash:   nil,
 			Nonces: nil,
 		},
 	}
 	
-	resp := VerifyResponse{}
+	resp := service.VerifyResponse{}
 
 	var clientReq, serverResp bytes.Buffer
 
@@ -142,16 +143,16 @@ func TestVerifyHandler_PayloadWrong(t *testing.T) {
 	binary.LittleEndian.PutUint64(hash, k0)
 	binary.LittleEndian.PutUint64(hash[8:], k1)
 
-	req := VerifyRequest{
+	req := service.VerifyRequest{
 		RequestID:   "6ca1efb1-7134-406e-9304-0c3e774fd8ba",
 		ChallengeID: "c9c0747d-587a-4f65-97fa-332ebddc6ed3",
-		Payload:     ProofOfWork{
+		Payload:     service.ProofOfWork{
 			Hash:   hash,
 			Nonces: nonces,
 		},
 	}
 
-	resp := VerifyResponse{}
+	resp := service.VerifyResponse{}
 
 	var clientReq, serverResp bytes.Buffer
 
@@ -204,16 +205,16 @@ func TestVerifyHandler_Successful(t *testing.T) {
 	binary.LittleEndian.PutUint64(hash, k0)
 	binary.LittleEndian.PutUint64(hash[8:], k1)
 
-	req := VerifyRequest{
+	req := service.VerifyRequest{
 		RequestID:   "6ca1efb1-7134-406e-9304-0c3e774fd8ba",
 		ChallengeID: "c9c0747d-587a-4f65-97fa-332ebddc6ed3",
-		Payload:     ProofOfWork{
+		Payload:     service.ProofOfWork{
 			Hash:   hash,
 			Nonces: nonces,
 		},
 	}
 
-	resp := VerifyResponse{}
+	resp := service.VerifyResponse{}
 
 	var clientReq, serverResp bytes.Buffer
 

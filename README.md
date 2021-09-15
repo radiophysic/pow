@@ -47,8 +47,3 @@ It should resist to ASIC issue.
 ### Client-Server message format
 
 `encoding/gob` was selected because it's part of standard library 
-
-## Work in progress
-
-- clean code
-- complete readme

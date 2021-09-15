@@ -3,7 +3,6 @@ package client
 import (
 	"bufio"
 	"encoding/gob"
-	"fmt"
 	"log"
 	"strconv"
 
@@ -16,26 +15,27 @@ import (
 
 type Client struct {
 	cfg conf.Config
+	log *log.Logger
 }
 
-func NewClient(config conf.Config) Client {
-	return Client{cfg: config}
+func NewClient(config conf.Config, logger *log.Logger) Client {
+	return Client{cfg: config, log: logger}
 }
 
 func (c Client) GetQuote() error {
 	serverAddr := c.cfg.ServerAddr + c.cfg.ServerPort
 	rw, err := lib.Open(serverAddr)
 	if err != nil {
-		fmt.Println("The client cannot link to change the address:" + serverAddr)
+		c.log.Println("The client cannot link to change the address:" + serverAddr)
 		return err
 	}
 
-	var challengeRequestID, respRequestID, ChallengeID string
-	if challengeRequestID, err = challengeRequest(rw); err != nil {
+	var challengeRequestID, respRequestID, challengeID string
+	if challengeRequestID, err = c.challengeRequest(rw); err != nil {
 		return err
 	}
 
-	if ChallengeID, respRequestID, err = challengeResponse(rw); err != nil {
+	if challengeID, respRequestID, err = c.challengeResponse(rw); err != nil {
 		return err
 	}
 
@@ -51,34 +51,34 @@ func (c Client) GetQuote() error {
 
 	pow := &service.VerifyRequest{
 		RequestID:   uuid.New().String(),
-		ChallengeID: ChallengeID,
+		ChallengeID: challengeID,
 		Payload: struct {
 			Hash   []byte
 			Nonces []uint32
 		}{Hash: hash, Nonces: nonces},
 	}
 
-	if _, err = verifyRequest(rw, pow); err != nil {
+	if _, err = c.verifyRequest(rw, pow); err != nil {
 		return err
 	}
 
-	message, lastRequestId, err := verifyResponse(rw)
+	message, lastRequestID, err := c.verifyResponse(rw)
 	if err != nil {
 		return err
 	}
 
-	if pow.RequestID != lastRequestId {
-		return errors.New("pow.RequestID != lastRequestId")
+	if pow.RequestID != lastRequestID {
+		return errors.New("pow.RequestID != lastRequestID")
 	}
 
-	fmt.Printf("\n\nMy work has been proved\nQuote: [%s]\n\n", message)
+	c.log.Printf("\n\nMy work has been proved\nQuote: [%s]\n\n", message)
 
 	return nil
 }
 
-func challengeRequest(rw *bufio.ReadWriter) (id string, err error) {
+func (c Client) challengeRequest(rw *bufio.ReadWriter) (id string, err error) {
 	challengeReq := service.ChallengeRequest{RequestID: uuid.New().String()}
-	log.Printf("Ask server for challenge: RequestID: %s\n", challengeReq.RequestID)
+	c.log.Printf("Ask server for challenge: RequestID: %s\n", challengeReq.RequestID)
 	enc := gob.NewEncoder(rw)
 	n, err := rw.WriteString("challenge\n")
 	if err != nil {
@@ -96,18 +96,18 @@ func challengeRequest(rw *bufio.ReadWriter) (id string, err error) {
 	return challengeReq.RequestID, nil
 }
 
-func challengeResponse(rw *bufio.ReadWriter) (ChallengeID string, RequestID string, err error) {
+func (c Client) challengeResponse(rw *bufio.ReadWriter) (challengeID string, requestID string, err error) {
 	resp := &service.ChallengeResponse{}
 	decoder := gob.NewDecoder(rw)
-	if err := decoder.Decode(resp); err != nil {
+	if err = decoder.Decode(resp); err != nil {
 		return "", "", errors.Wrap(err, "ChallengeResponse failed to parse.")
 	}
-	log.Printf("Got ChallengeID: %s\n", resp.ChallengeID)
+	c.log.Printf("Got ChallengeID: %s\n", resp.ChallengeID)
 	return resp.ChallengeID, resp.RequestID, nil
 }
 
-func verifyRequest(rw *bufio.ReadWriter, pow *service.VerifyRequest) (id string, err error) {
-	log.Printf("Ask server for verification: RequestID: %s\n", pow.RequestID)
+func (c Client) verifyRequest(rw *bufio.ReadWriter, pow *service.VerifyRequest) (id string, err error) {
+	c.log.Printf("Ask server for verification: RequestID: %s\n", pow.RequestID)
 	enc := gob.NewEncoder(rw)
 
 	n, err := rw.WriteString("verify\n")
@@ -126,10 +126,10 @@ func verifyRequest(rw *bufio.ReadWriter, pow *service.VerifyRequest) (id string,
 	return pow.RequestID, nil
 }
 
-func verifyResponse(rw *bufio.ReadWriter) (Message string, RequestID string, err error) {
+func (c Client) verifyResponse(rw *bufio.ReadWriter) (message string, requestID string, err error) {
 	resp := &service.VerifyResponse{}
 	decoder := gob.NewDecoder(rw)
-	if err := decoder.Decode(resp); err != nil {
+	if err = decoder.Decode(resp); err != nil {
 		return "", "", errors.Wrap(err, "VerifyResponse failed to parse.")
 	}
 	return resp.Message, resp.RequestID, nil

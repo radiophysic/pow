@@ -6,8 +6,12 @@ import (
     "io"
 )
 
+const (
+    bufferDefaultSize = 32*1024
+)
+
 func LineCounter(r io.Reader) (int, error) {
-    buf := make([]byte, 32*1024)
+    buf := make([]byte, bufferDefaultSize)
     count := 0
     lineSep := []byte{'\n'}
 

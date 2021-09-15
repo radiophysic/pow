@@ -6,11 +6,14 @@ import (
 	"github.com/AidosKuneen/cuckoo"
 )
 
-const maxInt = 1<<32 - 1
+const (
+	hashSize = 16
+	maxInt   = 1<<32 - 1
+)
 
 func Work() ([]byte, []uint32, error) {
 	c := cuckoo.NewCuckoo()
-	hash := make([]byte, 16)
+	hash := make([]byte, hashSize)
 	nounces := make([]uint32, 0)
 	var ok bool
 	for i := 0; i < maxInt; i++ {

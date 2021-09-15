@@ -3,13 +3,13 @@ package service
 import (
 	"bufio"
 	"encoding/gob"
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"tcp/pkg/lib"
 	"tcp/pkg/utils"
 )
@@ -82,7 +82,7 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 	if err := decoder.Decode(&request); err != nil {
 		response.Error.Code = 1
 		response.Error.ErrorMessage = err.Error()
-		writeVerifyResp(rw, &VerifyResponse{})
+		s.writeVerifyResp(rw, &VerifyResponse{})
 		return
 	}
 
@@ -93,7 +93,7 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 	if request.Payload.Hash == nil || request.Payload.Nonces == nil {
 		response.Error.Code = 2
 		response.Error.ErrorMessage = "payload is malformed"
-		writeVerifyResp(rw, &response)
+		s.writeVerifyResp(rw, &response)
 		return
 	}
 
@@ -102,7 +102,7 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 		s.log.Printf("Verification failed: %s", err)
 		response.Error.Code = 3
 		response.Error.ErrorMessage = err.Error()
-		writeVerifyResp(rw, &response)
+		s.writeVerifyResp(rw, &response)
 		return
 	}
 
@@ -111,23 +111,23 @@ func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 		s.log.Printf("Service internal error: %s\n", err)
 		response.Error.Code = 4
 		response.Error.ErrorMessage = err.Error()
-		writeVerifyResp(rw, &response)
+		s.writeVerifyResp(rw, &response)
 		return
 	}
 	response.Message = quote
-	writeVerifyResp(rw, &response)
+	s.writeVerifyResp(rw, &response)
 }
 
-func writeVerifyResp(rw *bufio.ReadWriter, response *VerifyResponse) {
+func (s Service) writeVerifyResp(rw *bufio.ReadWriter, response *VerifyResponse) {
 	encoder := gob.NewEncoder(rw)
 	if err := encoder.Encode(&response); err != nil {
-		fmt.Printf("VerifyHandler: encoder.Encode: %s", err)
+		s.log.Printf("VerifyHandler: encoder.Encode: %s", err)
 		return
 	}
 
 	err := rw.Flush()
 	if err != nil {
-		fmt.Println("Flush write failure")
+		s.log.Println("Flush write failure")
 		return
 	}
 }
@@ -140,49 +140,44 @@ func (s Service) getRandomQuote() (string, error) {
 		file *os.File
 	)
 
-	if _, err = os.Stat(s.cfg.DatasetFile); err == nil {
-		file, err = os.Open(s.cfg.DatasetFile)
-		if err != nil {
-			s.log.Printf("getRandomQuote: file open: %s", err.Error())
-			return "", err
-		}
-
-		reader := bufio.NewReader(file)
-		linesCount, err = utils.LineCounter(reader)
-		if err != nil {
-			return "", err
-		}
-
-		rand.Seed(time.Now().UnixNano())
-		line = rand.Intn(linesCount)
-		if line == 0 {
-			line = 1
-		}
-
-		// rewind position to the beginning of the file because EOF reached due to LineCounter call
-		_,_ = file.Seek(0, 0)
-
-		q, _, err = utils.ReadLine(reader, line)
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("Got EOF " + q)
-			}
-			return "", err
-		}
-
-		s.log.Printf("\nQuote picked: \n%s\n", q)
-		defer func() {
-			if err = file.Close(); err != nil {
-				s.log.Println("Closing file error" + err.Error())
-			}
-		}()
-	} else if os.IsNotExist(err) {
+	if _, err = os.Stat(s.cfg.DatasetFile); err != nil {
 		s.log.Println("getRandomQuote: file not found")
 		return "", err
-    } else {
+	}
+
+	if file, err = os.Open(s.cfg.DatasetFile); err != nil {
 		s.log.Printf("getRandomQuote: file open: %s", err.Error())
-        return "", err
-    }
+		return "", err
+	}
+
+	reader := bufio.NewReader(file)
+	linesCount, err = utils.LineCounter(reader)
+	if err != nil {
+		return "", err
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	line = rand.Intn(linesCount)
+	if line == 0 {
+		line = 1
+	}
+
+	// rewind position to the beginning of the file because EOF reached due to LineCounter call
+	_,_ = file.Seek(0, 0)
+
+	if q, _, err = utils.ReadLine(reader, line); err != nil {
+		if errors.Is(err, io.EOF) {
+			s.log.Println("Got EOF " + q)
+		}
+		return "", err
+	}
+
+	s.log.Printf("\nQuote picked: \n%s\n", q)
+	defer func() {
+		if err = file.Close(); err != nil {
+			s.log.Println("Closing file error" + err.Error())
+		}
+	}()
 
 	return q, nil
 }
