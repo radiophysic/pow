@@ -76,46 +76,62 @@ func (s Service) ChallengeHandler(rw *bufio.ReadWriter) {
 
 func (s Service) VerifyHandler(rw *bufio.ReadWriter) {
 	var request VerifyRequest
+	var response VerifyResponse
+
 	decoder := gob.NewDecoder(rw)
 	if err := decoder.Decode(&request); err != nil {
-		fmt.Printf("VerifyHandler: decoder.Decode: %s", err)
+		response.Error.Code = 1
+		response.Error.ErrorMessage = err.Error()
+		writeVerifyResp(rw, &VerifyResponse{})
 		return
 	}
+
+	response.RequestID = request.RequestID
 	fmt.Println("Client asked for verification, id:", request.RequestID)
 
-	response := &VerifyResponse{
-		RequestID: request.RequestID,
+	if request.Payload.Hash == nil || request.Payload.Nonces == nil {
+		response.Error.Code = 2
+		response.Error.ErrorMessage = "payload is malformed"
+		writeVerifyResp(rw, &response)
+		return
 	}
 
 	err := lib.Verify(request.Payload.Hash, request.Payload.Nonces)
 	if err != nil {
 		fmt.Printf("Verification failed: %s", err)
-		response.Error.Code = 0
+		response.Error.Code = 3
 		response.Error.ErrorMessage = err.Error()
+		writeVerifyResp(rw, &response)
+		return
 	}
 
-	quote, err := getRandomQuote(s.cfg.DatasetFile)
+	quote, err := GetRandomQuote(s.cfg.DatasetFile)
 	if err != nil {
 		fmt.Printf("Service internal error: %s\n", err)
-		response.Error.Code = 0
+		response.Error.Code = 4
 		response.Error.ErrorMessage = err.Error()
+		writeVerifyResp(rw, &response)
+		return
 	}
 	response.Message = quote
+	writeVerifyResp(rw, &response)
+}
 
+func writeVerifyResp(rw *bufio.ReadWriter, response *VerifyResponse) {
 	encoder := gob.NewEncoder(rw)
-	if err = encoder.Encode(&response); err != nil {
+	if err := encoder.Encode(&response); err != nil {
 		fmt.Printf("VerifyHandler: encoder.Encode: %s", err)
 		return
 	}
 
-	err = rw.Flush()
+	err := rw.Flush()
 	if err != nil {
 		fmt.Println("Flush write failure")
 		return
 	}
 }
 
-func getRandomQuote(f string) (string, error) {
+func GetRandomQuote(f string) (string, error) {
 	var q string
 	var line int
 	var file *os.File
@@ -157,7 +173,7 @@ func getRandomQuote(f string) (string, error) {
 			}
 		}()
 	} else if os.IsNotExist(err) {
-		fmt.Println("getRandomQuote: flie not found")
+		fmt.Println("getRandomQuote: file not found")
 		return "", err
     } else {
 		fmt.Printf("getRandomQuote: flie open: %s", err.Error())
